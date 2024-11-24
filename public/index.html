@@ -38,6 +38,9 @@
 				<h2 class="text-lg font-semibold mb-2 text-gray-700">Processed Image</h2>
 				<div id="processedImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden hidden">
 					<img id="outputImage" src="" alt="Processed image will appear here" class="object-contain w-full h-full">
+					<div id="processingMessage" class="hidden flex items-center justify-center h-full">
+						<p class="text-lg font-semibold text-gray-600">Image is processing. Please wait...</p>
+					</div>
 				</div>
 				<button id="downloadBtn" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 hidden">
 					Download Processed Image
@@ -54,6 +57,7 @@
 	const originalImageContainer = document.getElementById('originalImageContainer');
 	const processedImageContainer = document.getElementById('processedImageContainer');
 	const downloadBtn = document.getElementById('downloadBtn');
+	const processingMessage = document.getElementById('processingMessage');
 
 	form.addEventListener('submit', async (e) => {
 		e.preventDefault();
@@ -71,6 +75,11 @@
 			reader.readAsDataURL(file);
 		}
 
+		// Show processing message
+		processedImageContainer.classList.remove('hidden');
+		outputImage.classList.add('hidden');
+		processingMessage.classList.remove('hidden');
+
 		try {
 			const response = await fetch('/remove-background', {
 				method: 'POST',
@@ -84,8 +93,10 @@
 			const blob = await response.blob();
 			const url = URL.createObjectURL(blob);
 
+			// Hide processing message and show processed image
+			processingMessage.classList.add('hidden');
+			outputImage.classList.remove('hidden');
 			outputImage.src = url;
-			processedImageContainer.classList.remove('hidden');
 
 			// Enable download button
 			downloadBtn.classList.remove('hidden');
@@ -99,13 +110,16 @@
 			};
 		} catch (err) {
 			alert(err.message);
+			// Hide processing message on error
+			processingMessage.classList.add('hidden');
 		}
 	});
 
-	// Hide image containers when a new file is selected
+	// Hide image containers and processing message when a new file is selected
 	form.image.addEventListener('change', () => {
 		originalImageContainer.classList.add('hidden');
 		processedImageContainer.classList.add('hidden');
+		processingMessage.classList.add('hidden');
 		downloadBtn.classList.add('hidden');
 	});
 </script>
