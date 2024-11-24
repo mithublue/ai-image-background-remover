@@ -12,12 +12,12 @@ app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
 app.use(fileUpload()); // Handle file uploads
 
 // Route to serve the index.html
-app.get('/', (req, res) => {
+app.get('/image-background-remover', (req, res) => {
 	res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Route to handle background removal
-app.post('/remove-background', (req, res) => {
+app.post('/image-background-remover/remove-background', (req, res) => {
 	if (!req.files || !req.files.image) {
 		return res.status(400).send('No image file was uploaded.');
 	}

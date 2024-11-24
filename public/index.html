@@ -37,7 +37,7 @@
 			setUploadProgress(0);
 
 			try {
-				const response = await axios.post('/remove-background', formData, {
+				const response = await axios.post('/image-background-remover/remove-background', formData, {
 					onUploadProgress: (progressEvent) => {
 						const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
 						setUploadProgress(percentCompleted);
