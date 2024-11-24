@@ -4,124 +4,145 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Background Remover</title>
+	<script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+	<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+	<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-<div class="container mx-auto px-4 py-8 max-w-4xl">
-	<h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Background Remover</h1>
-	<div class="bg-white shadow-md rounded-lg p-6">
-		<form id="uploadForm" enctype="multipart/form-data" class="mb-6">
-			<div class="mb-4">
-				<label for="image" class="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
-				<input type="file" name="image" id="image" accept="image/*" required
-				       class="block w-full text-sm text-gray-500
-                                  file:mr-4 file:py-2 file:px-4
-                                  file:rounded-md file:border-0
-                                  file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100">
-			</div>
-			<button type="submit"
-			        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">
-				Remove Background
-			</button>
-		</form>
+<body>
+<div id="root"></div>
 
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-			<div>
-				<h2 class="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
-				<div id="originalImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden hidden">
-					<img id="originalImage" src="" alt="Original image will appear here" class="object-contain w-full h-full">
-				</div>
-			</div>
-			<div>
-				<h2 class="text-lg font-semibold mb-2 text-gray-700">Processed Image</h2>
-				<div id="processedImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden hidden">
-					<img id="outputImage" src="" alt="Processed image will appear here" class="object-contain w-full h-full">
-					<div id="processingMessage" class="hidden flex items-center justify-center h-full">
-						<p class="text-lg font-semibold text-gray-600">Image is processing. Please wait...</p>
+<script type="text/babel">
+	function BackgroundRemover() {
+		const [file, setFile] = React.useState(null);
+		const [originalImage, setOriginalImage] = React.useState(null);
+		const [processedImage, setProcessedImage] = React.useState(null);
+		const [uploadProgress, setUploadProgress] = React.useState(0);
+		const [isProcessing, setIsProcessing] = React.useState(false);
+
+		const handleFileChange = (event) => {
+			const selectedFile = event.target.files[0];
+			setFile(selectedFile);
+			setOriginalImage(URL.createObjectURL(selectedFile));
+		};
+
+		const handleUpload = async () => {
+			if (!file) return;
+
+			const formData = new FormData();
+			formData.append('image', file);
+
+			setIsProcessing(true);
+			setUploadProgress(0);
+
+			try {
+				const response = await axios.post('/remove-background', formData, {
+					onUploadProgress: (progressEvent) => {
+						const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+						setUploadProgress(percentCompleted);
+					},
+					responseType: 'blob', // Set the response type to blob
+				});
+
+				const url = URL.createObjectURL(new Blob([response.data]));
+				setProcessedImage(url);
+			} catch (error) {
+				console.error('Error processing image:', error);
+				alert('Failed to process the image. Please try again.');
+			} finally {
+				setIsProcessing(false);
+				setUploadProgress(0);
+			}
+		};
+
+		const handleDownload = () => {
+			if (processedImage) {
+				const link = document.createElement('a');
+				link.href = processedImage;
+				link.download = 'processed_image.png';
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			}
+		};
+
+		return (
+			<div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+				<div className="max-w-4xl w-full bg-white shadow-md rounded-lg p-8">
+					<h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Background Remover</h1>
+
+					<div className="mb-6">
+						<label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
+							Upload Image
+						</label>
+						<input
+							id="file-upload"
+							name="file-upload"
+							type="file"
+							accept="image/*"
+							onChange={handleFileChange}
+							className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+						/>
 					</div>
+
+					{file && (
+						<button
+							onClick={handleUpload}
+							className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 mb-6"
+							disabled={isProcessing}
+						>
+							{isProcessing ? 'Processing...' : 'Remove Background'}
+						</button>
+					)}
+
+					{(uploadProgress > 0 || isProcessing) && (
+						<div className="mb-6">
+							<div className="h-2 w-full bg-gray-200 rounded-full">
+								<div
+									className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-in-out"
+									style={{ width: `${uploadProgress}%` }}
+								></div>
+							</div>
+							<p className="text-center mt-2 text-gray-600">
+								{isProcessing ? 'Processing...' : `Uploading: ${uploadProgress}%`}
+							</p>
+						</div>
+					)}
+
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<h2 className="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
+							{originalImage && (
+								<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+									<img src={originalImage} alt="Original" className="object-contain w-full h-full" />
+								</div>
+							)}
+						</div>
+						<div>
+							<h2 className="text-lg font-semibold mb-2 text-gray-700">Processed Image</h2>
+							{processedImage && (
+								<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+									<img src={processedImage} alt="Processed" className="object-contain w-full h-full" />
+								</div>
+							)}
+						</div>
+					</div>
+
+					{processedImage && (
+						<button
+							onClick={handleDownload}
+							className="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
+						>
+							Download Processed Image
+						</button>
+					)}
 				</div>
-				<button id="downloadBtn" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 hidden">
-					Download Processed Image
-				</button>
 			</div>
-		</div>
-	</div>
-</div>
+		);
+	}
 
-<script>
-	const form = document.getElementById('uploadForm');
-	const originalImage = document.getElementById('originalImage');
-	const outputImage = document.getElementById('outputImage');
-	const originalImageContainer = document.getElementById('originalImageContainer');
-	const processedImageContainer = document.getElementById('processedImageContainer');
-	const downloadBtn = document.getElementById('downloadBtn');
-	const processingMessage = document.getElementById('processingMessage');
-
-	form.addEventListener('submit', async (e) => {
-		e.preventDefault();
-
-		const formData = new FormData(form);
-
-		// Display original image
-		const file = form.image.files[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.onload = function(e) {
-				originalImage.src = e.target.result;
-				originalImageContainer.classList.remove('hidden');
-			}
-			reader.readAsDataURL(file);
-		}
-
-		// Show processing message
-		processedImageContainer.classList.remove('hidden');
-		outputImage.classList.add('hidden');
-		processingMessage.classList.remove('hidden');
-
-		try {
-			const response = await fetch('/remove-background', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to process the image.');
-			}
-
-			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
-
-			// Hide processing message and show processed image
-			processingMessage.classList.add('hidden');
-			outputImage.classList.remove('hidden');
-			outputImage.src = url;
-
-			// Enable download button
-			downloadBtn.classList.remove('hidden');
-			downloadBtn.onclick = () => {
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = 'processed_image.png';
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-			};
-		} catch (err) {
-			alert(err.message);
-			// Hide processing message on error
-			processingMessage.classList.add('hidden');
-		}
-	});
-
-	// Hide image containers and processing message when a new file is selected
-	form.image.addEventListener('change', () => {
-		originalImageContainer.classList.add('hidden');
-		processedImageContainer.classList.add('hidden');
-		processingMessage.classList.add('hidden');
-		downloadBtn.classList.add('hidden');
-	});
+	ReactDOM.render(<BackgroundRemover />, document.getElementById('root'));
 </script>
 </body>
 </html>
