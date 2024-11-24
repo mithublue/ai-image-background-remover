@@ -30,13 +30,13 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 			<div>
 				<h2 class="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
-				<div id="originalImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+				<div id="originalImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden hidden">
 					<img id="originalImage" src="" alt="Original image will appear here" class="object-contain w-full h-full">
 				</div>
 			</div>
 			<div>
 				<h2 class="text-lg font-semibold mb-2 text-gray-700">Processed Image</h2>
-				<div id="processedImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+				<div id="processedImageContainer" class="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden hidden">
 					<img id="outputImage" src="" alt="Processed image will appear here" class="object-contain w-full h-full">
 				</div>
 				<button id="downloadBtn" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 hidden">
@@ -66,7 +66,7 @@
 			const reader = new FileReader();
 			reader.onload = function(e) {
 				originalImage.src = e.target.result;
-				originalImageContainer.classList.remove('bg-gray-200');
+				originalImageContainer.classList.remove('hidden');
 			}
 			reader.readAsDataURL(file);
 		}
@@ -85,7 +85,7 @@
 			const url = URL.createObjectURL(blob);
 
 			outputImage.src = url;
-			processedImageContainer.classList.remove('bg-gray-200');
+			processedImageContainer.classList.remove('hidden');
 
 			// Enable download button
 			downloadBtn.classList.remove('hidden');
@@ -100,6 +100,13 @@
 		} catch (err) {
 			alert(err.message);
 		}
+	});
+
+	// Hide image containers when a new file is selected
+	form.image.addEventListener('change', () => {
+		originalImageContainer.classList.add('hidden');
+		processedImageContainer.classList.add('hidden');
+		downloadBtn.classList.add('hidden');
 	});
 </script>
 </body>
