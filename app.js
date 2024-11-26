@@ -16,6 +16,11 @@ app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Route to serve the filters.html
+app.get('/filters', (req, res) => {
+	res.sendFile(path.join(__dirname, 'public', 'filters.html'));
+});
+
 // Route to handle background removal
 app.post('/remove-background', (req, res) => {
 	if (!req.files || !req.files.image) {
@@ -61,3 +66,4 @@ app.post('/remove-background', (req, res) => {
 app.listen(PORT, () => {
 	console.log(`Server is running at http://localhost:${PORT}`);
 });
+

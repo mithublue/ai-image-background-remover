@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Image Filters</title>
+	<script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+	<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+	<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/camanjs/4.1.2/caman.full.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+	function ImageFilters() {
+		const [originalImage, setOriginalImage] = React.useState(null);
+		const [selectedFilter, setSelectedFilter] = React.useState('normal');
+		const [intensity, setIntensity] = React.useState(30);
+		const [isProcessing, setIsProcessing] = React.useState(false);
+
+		const canvasRef = React.useRef(null);
+
+		const filters = [
+			{ id: 'normal', name: 'Normal' },
+			{ id: 'brightness', name: 'Brightness' },
+			{ id: 'contrast', name: 'Contrast' },
+			{ id: 'saturation', name: 'Saturation' },
+			{ id: 'vibrance', name: 'Vibrance' },
+			{ id: 'greyscale', name: 'Greyscale' },
+			{ id: 'sepia', name: 'Sepia' },
+			{ id: 'hue', name: 'Hue' },
+		];
+
+		const handleFileChange = (event) => {
+			const file = event.target.files[0];
+			const reader = new FileReader();
+
+			reader.onload = (e) => {
+				setOriginalImage(e.target.result);
+			};
+
+			if (file) {
+				reader.readAsDataURL(file);
+			}
+		};
+
+		const handleFilterChange = (event) => {
+			setSelectedFilter(event.target.value);
+		};
+
+		const handleIntensityChange = (event) => {
+			setIntensity(parseInt(event.target.value, 10));
+		};
+
+		React.useEffect(() => {
+			if (originalImage && canvasRef.current) {
+				applyFilter();
+			}
+		}, [originalImage, selectedFilter, intensity]);
+
+		const applyFilter = () => {
+			setIsProcessing(true);
+			const canvas = canvasRef.current;
+
+			Caman(canvas, originalImage, function() {
+				this.revert(false);
+
+				switch (selectedFilter) {
+					case 'brightness':
+						this.brightness(intensity);
+						break;
+					case 'contrast':
+						this.contrast(intensity);
+						break;
+					case 'saturation':
+						this.saturation(intensity);
+						break;
+					case 'vibrance':
+						this.vibrance(intensity);
+						break;
+					case 'greyscale':
+						this.greyscale();
+						break;
+					case 'sepia':
+						this.sepia(intensity);
+						break;
+					case 'hue':
+						this.hue(intensity);
+						break;
+					default:
+						break;
+				}
+
+				this.render(() => {
+					setIsProcessing(false);
+				});
+			});
+		};
+
+		const handleDownload = () => {
+			const canvas = canvasRef.current;
+			const link = document.createElement('a');
+			link.download = 'filtered-image.png';
+			link.href = canvas.toDataURL();
+			link.click();
+		};
+
+		return (
+			<div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+				<div className="max-w-4xl w-full bg-white shadow-md rounded-lg p-8">
+					<div className="flex items-center justify-between mb-8">
+						<h1 className="text-3xl font-bold text-gray-800">Image Filters</h1>
+						<a href="/" className="text-blue-500 hover:text-blue-600">
+							Go to Background Remover
+						</a>
+					</div>
+
+					<div className="mb-6">
+						<label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
+							Upload Image
+						</label>
+						<input
+							id="file-upload"
+							type="file"
+							accept="image/*"
+							onChange={handleFileChange}
+							className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+						/>
+					</div>
+
+					{originalImage && (
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-2">
+									Select Filter
+								</label>
+								<select
+									value={selectedFilter}
+									onChange={handleFilterChange}
+									className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+								>
+									{filters.map(filter => (
+										<option key={filter.id} value={filter.id}>
+											{filter.name}
+										</option>
+									))}
+								</select>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-2">
+									Intensity: {intensity}
+								</label>
+								<input
+									type="range"
+									min="0"
+									max="100"
+									value={intensity}
+									onChange={handleIntensityChange}
+									className="block w-full"
+								/>
+							</div>
+						</div>
+					)}
+
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div>
+							<h2 className="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
+							{originalImage && (
+								<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+									<img src={originalImage} alt="Original" className="object-contain w-full h-full" />
+								</div>
+							)}
+						</div>
+						<div>
+							<h2 className="text-lg font-semibold mb-2 text-gray-700">Filtered Image</h2>
+							<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
+								<canvas ref={canvasRef} className="object-contain w-full h-full" />
+							</div>
+						</div>
+					</div>
+
+					{originalImage && (
+						<button
+							onClick={handleDownload}
+							disabled={isProcessing}
+							className="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
+						>
+							{isProcessing ? 'Processing...' : 'Download Filtered Image'}
+						</button>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	ReactDOM.render(<ImageFilters />, document.getElementById('root'));
+</script>
+</body>
+</html>
+
