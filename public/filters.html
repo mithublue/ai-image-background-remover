@@ -65,6 +65,8 @@
 			noise: 0,
 			lomo: 0
 		});
+		const [history, setHistory] = React.useState([]);
+		const [currentStep, setCurrentStep] = React.useState(-1);
 
 		const canvasRef = React.useRef(null);
 		const camanInstanceRef = React.useRef(null);
@@ -76,6 +78,20 @@
 
 			reader.onload = (e) => {
 				setOriginalImage(e.target.result);
+				setHistory([]);
+				setCurrentStep(-1);
+				setEffects({
+					brightness: 0,
+					contrast: 0,
+					saturation: 0,
+					vibrance: 0,
+					greyscale: 0,
+					sepia: 0,
+					hue: 0,
+					gamma: 0,
+					noise: 0,
+					lomo: 0
+				});
 			};
 
 			if (file) {
@@ -84,12 +100,50 @@
 		};
 
 		const handleEffectChange = (effect, value) => {
-			// Ensure value is within bounds
 			const numValue = parseInt(value, 10);
 			const boundedValue = Math.min(Math.max(numValue, -100), 100);
 			if (!isNaN(boundedValue)) {
-				setEffects(prev => ({ ...prev, [effect]: boundedValue }));
+				const newEffects = { ...effects, [effect]: boundedValue };
+				setEffects(newEffects);
+				addToHistory(newEffects);
 			}
+		};
+
+		const addToHistory = (newEffects) => {
+			const newHistory = [...history.slice(0, currentStep + 1), newEffects];
+			setHistory(newHistory);
+			setCurrentStep(newHistory.length - 1);
+		};
+
+		const undo = () => {
+			if (currentStep > 0) {
+				setCurrentStep(currentStep - 1);
+				setEffects(history[currentStep - 1]);
+			}
+		};
+
+		const redo = () => {
+			if (currentStep < history.length - 1) {
+				setCurrentStep(currentStep + 1);
+				setEffects(history[currentStep + 1]);
+			}
+		};
+
+		const reset = () => {
+			setEffects({
+				brightness: 0,
+				contrast: 0,
+				saturation: 0,
+				vibrance: 0,
+				greyscale: 0,
+				sepia: 0,
+				hue: 0,
+				gamma: 0,
+				noise: 0,
+				lomo: 0
+			});
+			setHistory([]);
+			setCurrentStep(-1);
 		};
 
 		React.useEffect(() => {
@@ -105,7 +159,6 @@
 					const ctx = canvas.getContext('2d');
 					ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-					// Initialize Caman with the drawn image
 					if (camanInstanceRef.current) {
 						camanInstanceRef.current.reset();
 					}
@@ -157,7 +210,6 @@
 			setIsProcessing(true);
 			camanInstance.revert(false);
 
-			// Apply each effect
 			Object.entries(effects).forEach(([effect, value]) => {
 				switch (effect) {
 					case 'brightness':
@@ -234,6 +286,28 @@
 									/>
 								</div>
 							))}
+							<div className="flex justify-between mt-4">
+								<button
+									onClick={undo}
+									disabled={currentStep <= 0}
+									className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+								>
+									Undo
+								</button>
+								<button
+									onClick={redo}
+									disabled={currentStep >= history.length - 1}
+									className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+								>
+									Redo
+								</button>
+								<button
+									onClick={reset}
+									className="bg-red-500 text-white px-3 py-1 rounded"
+								>
+									Reset
+								</button>
+							</div>
 						</div>
 						<div className="flex-1 p-8">
 							<div className="max-w-4xl mx-auto">
@@ -268,6 +342,7 @@
 								</div>
 
 								{originalImage && (
+
 									<button
 										onClick={handleDownload}
 										disabled={isProcessing}
