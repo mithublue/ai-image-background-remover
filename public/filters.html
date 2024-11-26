@@ -14,24 +14,61 @@
 <div id="root"></div>
 
 <script type="text/babel">
+	function Navigation() {
+		return (
+			<nav className="bg-gray-800">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="flex items-center justify-between h-16">
+						<div className="flex items-center">
+							<div className="flex-shrink-0">
+								<span className="text-white font-bold text-xl">Image Processor</span>
+							</div>
+							<div className="hidden md:block">
+								<div className="ml-10 flex items-baseline space-x-4">
+									<a href="/" className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Background Remover</a>
+									<a href="/filters" className="bg-gray-900 text-white px-3 py-2 rounded-md text-sm font-medium">Image Filters</a>
+								</div>
+							</div>
+						</div>
+						<div className="md:hidden">
+							<button type="button" className="bg-gray-800 inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white">
+								<span className="sr-only">Open main menu</span>
+								<svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+								</svg>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div className="md:hidden">
+					<div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+						<a href="/" className="text-gray-300 hover:bg-gray-700 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Background Remover</a>
+						<a href="/filters" className="bg-gray-900 text-white block px-3 py-2 rounded-md text-base font-medium">Image Filters</a>
+					</div>
+				</div>
+			</nav>
+		);
+	}
+
 	function ImageFilters() {
 		const [originalImage, setOriginalImage] = React.useState(null);
-		const [selectedFilter, setSelectedFilter] = React.useState('normal');
-		const [intensity, setIntensity] = React.useState(30);
 		const [isProcessing, setIsProcessing] = React.useState(false);
+		const [effects, setEffects] = React.useState({
+			brightness: 0,
+			contrast: 0,
+			saturation: 0,
+			vibrance: 0,
+			greyscale: 0,
+			sepia: 0,
+			hue: 0,
+			gamma: 0,
+			noise: 0,
+			lomo: 0
+		});
 
 		const canvasRef = React.useRef(null);
-
-		const filters = [
-			{ id: 'normal', name: 'Normal' },
-			{ id: 'brightness', name: 'Brightness' },
-			{ id: 'contrast', name: 'Contrast' },
-			{ id: 'saturation', name: 'Saturation' },
-			{ id: 'vibrance', name: 'Vibrance' },
-			{ id: 'greyscale', name: 'Greyscale' },
-			{ id: 'sepia', name: 'Sepia' },
-			{ id: 'hue', name: 'Hue' },
-		];
+		const camanInstanceRef = React.useRef(null);
+		const containerRef = React.useRef(null);
 
 		const handleFileChange = (event) => {
 			const file = event.target.files[0];
@@ -46,56 +83,114 @@
 			}
 		};
 
-		const handleFilterChange = (event) => {
-			setSelectedFilter(event.target.value);
-		};
-
-		const handleIntensityChange = (event) => {
-			setIntensity(parseInt(event.target.value, 10));
+		const handleEffectChange = (effect, value) => {
+			// Ensure value is within bounds
+			const numValue = parseInt(value, 10);
+			const boundedValue = Math.min(Math.max(numValue, -100), 100);
+			if (!isNaN(boundedValue)) {
+				setEffects(prev => ({ ...prev, [effect]: boundedValue }));
+			}
 		};
 
 		React.useEffect(() => {
 			if (originalImage && canvasRef.current) {
-				applyFilter();
+				const canvas = canvasRef.current;
+				const img = new Image();
+				img.crossOrigin = "anonymous";
+				img.onload = () => {
+					const containerWidth = containerRef.current.clientWidth;
+					const scale = containerWidth / img.width;
+					canvas.width = containerWidth;
+					canvas.height = img.height * scale;
+					const ctx = canvas.getContext('2d');
+					ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+					// Initialize Caman with the drawn image
+					if (camanInstanceRef.current) {
+						camanInstanceRef.current.reset();
+					}
+					camanInstanceRef.current = Caman(canvas, function() {
+						this.revert(false);
+						applyFilters(this);
+					});
+				};
+				img.src = originalImage;
 			}
-		}, [originalImage, selectedFilter, intensity]);
+		}, [originalImage]);
 
-		const applyFilter = () => {
+		React.useEffect(() => {
+			const handleResize = () => {
+				if (originalImage && canvasRef.current) {
+					const canvas = canvasRef.current;
+					const img = new Image();
+					img.crossOrigin = "anonymous";
+					img.onload = () => {
+						const containerWidth = containerRef.current.clientWidth;
+						const scale = containerWidth / img.width;
+						canvas.width = containerWidth;
+						canvas.height = img.height * scale;
+						const ctx = canvas.getContext('2d');
+						ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+						if (camanInstanceRef.current) {
+							camanInstanceRef.current.reset();
+							camanInstanceRef.current = Caman(canvas, function() {
+								this.revert(false);
+								applyFilters(this);
+							});
+						}
+					};
+					img.src = originalImage;
+				}
+			};
+
+			window.addEventListener('resize', handleResize);
+			return () => window.removeEventListener('resize', handleResize);
+		}, [originalImage]);
+
+		React.useEffect(() => {
+			if (camanInstanceRef.current) {
+				applyFilters(camanInstanceRef.current);
+			}
+		}, [effects]);
+
+		const applyFilters = (camanInstance) => {
 			setIsProcessing(true);
-			const canvas = canvasRef.current;
+			camanInstance.revert(false);
 
-			Caman(canvas, originalImage, function() {
-				this.revert(false);
-
-				switch (selectedFilter) {
+			// Apply each effect
+			Object.entries(effects).forEach(([effect, value]) => {
+				switch (effect) {
 					case 'brightness':
-						this.brightness(intensity);
-						break;
 					case 'contrast':
-						this.contrast(intensity);
-						break;
 					case 'saturation':
-						this.saturation(intensity);
-						break;
 					case 'vibrance':
-						this.vibrance(intensity);
-						break;
 					case 'greyscale':
-						this.greyscale();
-						break;
-					case 'sepia':
-						this.sepia(intensity);
-						break;
 					case 'hue':
-						this.hue(intensity);
+					case 'noise':
+					case 'sepia':
+						if (value !== 0) {
+							camanInstance[effect](value);
+						}
 						break;
-					default:
+					case 'gamma':
+						if (value !== 0) {
+							camanInstance.gamma(value / 100 + 1);
+						}
+						break;
+					case 'lomo':
+						if (value > 0) {
+							camanInstance.brightness(15);
+							camanInstance.exposure(15);
+							camanInstance.curves('rgb', [0, 0], [200, 0], [155, 255], [255, 255]);
+							camanInstance.saturation(-20);
+							camanInstance.vignette("50%", 60);
+						}
 						break;
 				}
+			});
 
-				this.render(() => {
-					setIsProcessing(false);
-				});
+			camanInstance.render(() => {
+				setIsProcessing(false);
 			});
 		};
 
@@ -108,95 +203,97 @@
 		};
 
 		return (
-			<div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-				<div className="max-w-4xl w-full bg-white shadow-md rounded-lg p-8">
-					<div className="flex items-center justify-between mb-8">
-						<h1 className="text-3xl font-bold text-gray-800">Image Filters</h1>
-						<a href="/" className="text-blue-500 hover:text-blue-600">
-							Go to Background Remover
-						</a>
-					</div>
-
-					<div className="mb-6">
-						<label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
-							Upload Image
-						</label>
-						<input
-							id="file-upload"
-							type="file"
-							accept="image/*"
-							onChange={handleFileChange}
-							className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-						/>
-					</div>
-
-					{originalImage && (
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									Select Filter
-								</label>
-								<select
-									value={selectedFilter}
-									onChange={handleFilterChange}
-									className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-								>
-									{filters.map(filter => (
-										<option key={filter.id} value={filter.id}>
-											{filter.name}
-										</option>
-									))}
-								</select>
-							</div>
-
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									Intensity: {intensity}
-								</label>
-								<input
-									type="range"
-									min="0"
-									max="100"
-									value={intensity}
-									onChange={handleIntensityChange}
-									className="block w-full"
-								/>
-							</div>
-						</div>
-					)}
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<div>
-							<h2 className="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
-							{originalImage && (
-								<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
-									<img src={originalImage} alt="Original" className="object-contain w-full h-full" />
+			<div className="min-h-screen bg-gray-100">
+				<div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+					<h1 className="text-3xl font-bold text-center mb-8">Image Filters</h1>
+					<div className="flex flex-col md:flex-row">
+						<div className="w-full md:w-64 bg-white shadow-md p-4 overflow-y-auto">
+							<h2 className="text-xl font-bold mb-4">Effects</h2>
+							{Object.entries(effects).map(([effect, value]) => (
+								<div key={effect} className="mb-4">
+									<div className="flex items-center justify-between mb-1">
+										<label className="block text-sm font-medium text-gray-700 capitalize">
+											{effect}
+										</label>
+										<input
+											type="number"
+											min="-100"
+											max="100"
+											value={value}
+											onChange={(e) => handleEffectChange(effect, e.target.value)}
+											className="w-20 h-6 text-sm border rounded-md px-2"
+										/>
+									</div>
+									<input
+										type="range"
+										min="-100"
+										max="100"
+										value={value}
+										onChange={(e) => handleEffectChange(effect, e.target.value)}
+										className="w-full"
+									/>
 								</div>
-							)}
+							))}
 						</div>
-						<div>
-							<h2 className="text-lg font-semibold mb-2 text-gray-700">Filtered Image</h2>
-							<div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-md overflow-hidden">
-								<canvas ref={canvasRef} className="object-contain w-full h-full" />
+						<div className="flex-1 p-8">
+							<div className="max-w-4xl mx-auto">
+								<div className="mb-6">
+									<label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
+										Upload Image
+									</label>
+									<input
+										id="file-upload"
+										type="file"
+										accept="image/*"
+										onChange={handleFileChange}
+										className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+									/>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div>
+										<h2 className="text-lg font-semibold mb-2 text-gray-700">Original Image</h2>
+										{originalImage && (
+											<div className="bg-gray-200 rounded-md overflow-hidden">
+												<img src={originalImage} alt="Original" className="w-full h-auto" />
+											</div>
+										)}
+									</div>
+									<div ref={containerRef}>
+										<h2 className="text-lg font-semibold mb-2 text-gray-700">Filtered Image</h2>
+										<div className="bg-gray-200 rounded-md overflow-hidden">
+											<canvas ref={canvasRef} className="w-full h-auto" />
+										</div>
+									</div>
+								</div>
+
+								{originalImage && (
+									<button
+										onClick={handleDownload}
+										disabled={isProcessing}
+										className="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
+									>
+										{isProcessing ? 'Processing...' : 'Download Filtered Image'}
+									</button>
+								)}
 							</div>
 						</div>
 					</div>
-
-					{originalImage && (
-						<button
-							onClick={handleDownload}
-							disabled={isProcessing}
-							className="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-300"
-						>
-							{isProcessing ? 'Processing...' : 'Download Filtered Image'}
-						</button>
-					)}
 				</div>
 			</div>
 		);
 	}
 
-	ReactDOM.render(<ImageFilters />, document.getElementById('root'));
+	function App() {
+		return (
+			<div>
+				<Navigation />
+				<ImageFilters />
+			</div>
+		);
+	}
+
+	ReactDOM.render(<App />, document.getElementById('root'));
 </script>
 </body>
 </html>
